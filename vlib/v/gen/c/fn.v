@@ -791,9 +791,6 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 
 		g.expr(node.left)
 		g.write('${dot}_object')
-		if node.left_type.is_ptr() {
-			g.write(')')
-		}
 		if node.args.len > 0 {
 			g.write(', ')
 			g.call_args(node, false)
