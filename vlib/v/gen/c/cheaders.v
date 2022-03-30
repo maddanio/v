@@ -472,6 +472,7 @@ const c_helper_macros = '//============================== HELPER C MACROS ======
 
 // pointer tagging
 #define TAG_MANAGED_PTR(type, p) ((type*)(((usize)(p))|1))
+#define IS_MANAGED_PTR(p) (((usize)(p))&1)
 #define UNTAG_PTR(type, p) ((type*)(((usize)(p))&(~((usize)1))))
 
 #define _PUSH_MANY(arr, val, tmp, tmp_typ) {tmp_typ tmp = (val); array_push_many(arr, tmp.data, tmp.len);}
