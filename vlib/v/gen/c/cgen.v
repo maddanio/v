@@ -2153,6 +2153,7 @@ fn (mut g Gen) expr_with_cast(expr ast.Expr, got_type_raw ast.Type, expected_typ
 		g.write('->val')
 		return
 	}
+	mut in_untag := false
 	if got_is_ptr && !expected_is_ptr && neither_void && exp_sym.kind != .placeholder
 		&& expr !is ast.InfixExpr {
 		got_deref_type := got_type.deref()
@@ -2161,24 +2162,30 @@ fn (mut g Gen) expr_with_cast(expr ast.Expr, got_type_raw ast.Type, expected_typ
 		got_is_opt := got_type.has_flag(.optional)
 		if deref_will_match || got_is_opt || expr.is_auto_deref_var() {
 			g.write('*')
+			g.begin_untag(got_type)
+			in_untag = true
 		}
 	}
 	if expected_type.has_flag(.optional) && expr is ast.None {
 		g.gen_optional_error(expected_type, expr)
-		return
-	}
-	if expr is ast.IntegerLiteral {
-		if expected_type in [ast.u64_type, ast.u32_type, ast.u16_type] && expr.val[0] != `-` {
-			g.expr(expr)
-			g.write('U')
-			return
+		g.begin_untag(got_type)
+	} else {
+		if expr is ast.IntegerLiteral {
+			if expected_type in [ast.u64_type, ast.u32_type, ast.u16_type] && expr.val[0] != `-` {
+				g.expr(expr)
+				g.write('U')
+				return
+			}
 		}
+		if exp_sym.kind == .function {
+			g.write('(voidptr)')
+		}
+		// no cast
+		g.expr(expr)
 	}
-	if exp_sym.kind == .function {
-		g.write('(voidptr)')
+	if in_untag {
+		g.end_untag(got_type)
 	}
-	// no cast
-	g.expr(expr)
 }
 
 fn write_octal_escape(mut b strings.Builder, c byte) {
