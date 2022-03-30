@@ -27,7 +27,7 @@ fn (mut g Gen) struct_init(node ast.StructInit) {
 		shared_styp = g.typ(shared_typ)
 		g.writeln('($shared_styp*)__dup${shared_styp}(&($shared_styp){.mtx = {0}, .val =($styp){')
 	} else if is_amp || g.inside_cast_in_heap > 0 {
-		g.write('($styp*)memdup(&($styp){')
+		g.write('TAG_MANAGED_PTR($styp,($styp*)memdup(&($styp){')
 	} else if node.typ.is_ptr() {
 		basetyp := g.typ(node.typ.set_nr_muls(0))
 		if is_multiline {
@@ -276,7 +276,7 @@ fn (mut g Gen) struct_init(node ast.StructInit) {
 	if g.is_shared && !g.inside_opt_data && !g.is_arraymap_set {
 		g.write('}, sizeof($shared_styp))')
 	} else if is_amp || g.inside_cast_in_heap > 0 {
-		g.write(', sizeof($styp))')
+		g.write(', sizeof($styp)))')
 	}
 }
 

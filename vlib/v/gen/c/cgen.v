@@ -3166,6 +3166,8 @@ fn (mut g Gen) typeof_expr(node ast.TypeOf) {
 fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 	prevent_sum_type_unwrapping_once := g.prevent_sum_type_unwrapping_once
 	g.prevent_sum_type_unwrapping_once = false
+	sym := g.table.sym(g.unwrap_generic(node.expr_type))
+
 	if node.name_type > 0 {
 		match node.gkind_field {
 			.name {
@@ -3204,7 +3206,6 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 	if node.expr_type == 0 {
 		g.checker_bug('unexpected SelectorExpr.expr_type = 0', node.pos)
 	}
-	sym := g.table.sym(g.unwrap_generic(node.expr_type))
 	// if node expr is a root ident and an optional
 	mut is_optional := node.expr is ast.Ident && node.expr_type.has_flag(.optional)
 	if is_optional {
@@ -3261,7 +3262,17 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 			}
 		}
 	}
+
 	n_ptr := node.expr_type.nr_muls() - 1
+
+	if node.expr_type.is_ptr() {
+		styp := g.typ(node.expr_type)
+		g.write('UNTAG_PTR($styp')
+		// hack: remove *
+		g.out.go_back(node.expr_type.nr_muls())
+		g.write(',')
+	}
+
 	if n_ptr > 0 {
 		g.write('(')
 		g.write('*'.repeat(n_ptr))
@@ -3273,6 +3284,8 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 	if is_optional {
 		g.write('.data)')
 	}
+
+
 	// struct embedding
 	if sym.info in [ast.Struct, ast.Aggregate] {
 		for i, embed in node.from_embed_types {
@@ -3290,6 +3303,10 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 			}
 			g.write(embed_name)
 		}
+	}
+
+	if node.expr_type.is_ptr() {
+		g.write(')')
 	}
 	if (node.expr_type.is_ptr() || sym.kind == .chan) && node.from_embed_types.len == 0 {
 		g.write('->')
