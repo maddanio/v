@@ -3830,6 +3830,18 @@ fn (mut g Gen) cast_expr(node ast.CastExpr) {
 	}
 }
 
+fn (mut g Gen) begin_untag_if(typ ast.Type) {
+	if typ.is_ptr() {
+		g.begin_untag(typ)
+	}
+}
+
+fn (mut g Gen) end_untag_if(typ ast.Type) {
+	if typ.is_ptr() {
+		g.end_untag(typ)
+	}
+}
+
 fn (mut g Gen) begin_untag(typ ast.Type) {
 	styp := g.typ(typ)
 	g.write('UNTAG_PTR($styp')
@@ -5426,12 +5438,16 @@ fn (mut g Gen) as_cast(node ast.AsCast) {
 		dot := if node.expr_type.is_ptr() { '->' } else { '.' }
 		g.write('/* as */ *($styp*)__as_cast(')
 		g.write('(')
+		g.begin_untag_if(node.expr_type)
 		g.expr(node.expr)
+		g.end_untag_if(node.expr_type)
 		g.write(')')
 		g.write(dot)
 		g.write('_$sym.cname,')
 		g.write('(')
+		g.begin_untag_if(node.expr_type)
 		g.expr(node.expr)
+		g.end_untag_if(node.expr_type)
 		g.write(')')
 		g.write(dot)
 		// g.write('typ, /*expected:*/$node.typ)')
