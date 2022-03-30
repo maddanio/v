@@ -3265,13 +3265,7 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 
 	n_ptr := node.expr_type.nr_muls() - 1
 
-	if node.expr_type.is_ptr() {
-		styp := g.typ(node.expr_type)
-		g.write('UNTAG_PTR($styp')
-		// hack: remove *
-		g.out.go_back(node.expr_type.nr_muls())
-		g.write(',')
-	}
+	g.begin_untag(node.expr_type)
 
 	if n_ptr > 0 {
 		g.write('(')
@@ -3305,9 +3299,8 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 		}
 	}
 
-	if node.expr_type.is_ptr() {
-		g.write(')')
-	}
+	g.end_untag(node.expr_type)
+
 	if (node.expr_type.is_ptr() || sym.kind == .chan) && node.from_embed_types.len == 0 {
 		g.write('->')
 	} else {
@@ -3830,6 +3823,22 @@ fn (mut g Gen) cast_expr(node ast.CastExpr) {
 			}
 			g.write('))')
 		}
+	}
+}
+
+fn (mut g Gen) begin_untag(typ ast.Type) {
+	if typ.is_ptr() {
+		styp := g.typ(typ)
+		g.write('UNTAG_PTR($styp')
+		// hack: remove *
+		g.out.go_back(typ.nr_muls())
+		g.write(', ')
+	}
+}
+
+fn (mut g Gen) end_untag(typ ast.Type) {
+	if typ.is_ptr() {
+		g.write(')')
 	}
 }
 

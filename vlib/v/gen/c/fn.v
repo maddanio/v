@@ -776,6 +776,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		left_is_shared := node.left_type.has_flag(.shared_f)
 		left_cc_type := g.cc_type(node.left_type, false)
 		left_type_name := util.no_dots(left_cc_type)
+
 		g.write('${c_name(left_type_name)}_name_table[')
 		g.expr(node.left)
 		dot := if left_is_shared {
@@ -787,8 +788,15 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		}
 		mname := c_name(node.name)
 		g.write('${dot}_typ]._method_${mname}(')
+
+		if node.left_type.is_ptr() {
+			g.write('UNTAG_PTR(void, ')
+		}
 		g.expr(node.left)
 		g.write('${dot}_object')
+		if node.left_type.is_ptr() {
+			g.write(')')
+		}
 		if node.args.len > 0 {
 			g.write(', ')
 			g.call_args(node)
@@ -1035,6 +1043,9 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 			g.write('${name}(')
 		}
 	}
+
+	g.begin_untag(node.receiver_type)
+
 	if node.receiver_type.is_ptr()
 		&& (!node.left_type.is_ptr() || node.left_type.has_flag(.variadic)
 		|| node.from_embed_types.len != 0
@@ -1109,6 +1120,9 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 	if has_cast {
 		g.write(')')
 	}
+
+	g.end_untag(node.receiver_type)
+
 	is_variadic := node.expected_arg_types.len > 0
 		&& node.expected_arg_types[node.expected_arg_types.len - 1].has_flag(.variadic)
 	if node.args.len > 0 || is_variadic {
@@ -1588,6 +1602,14 @@ fn (mut g Gen) call_args(node ast.CallExpr) {
 		if is_variadic && i == expected_types.len - 1 {
 			break
 		}
+
+		mut typ := arg.typ
+		if i < expected_types.len {
+			typ = expected_types[i]
+		}
+
+		g.begin_untag(typ)
+
 		use_tmp_var_autofree := g.is_autofree && arg.typ == ast.string_type && arg.is_tmp_autofree
 			&& !g.inside_const && !g.is_builtin_mod
 		// g.write('/* af=$arg.is_tmp_autofree */')
@@ -1619,6 +1641,9 @@ fn (mut g Gen) call_args(node ast.CallExpr) {
 				g.expr(arg.expr)
 			}
 		}
+
+		g.end_untag(typ)
+
 		if i < args.len - 1 || is_variadic {
 			g.write(', ')
 		}
