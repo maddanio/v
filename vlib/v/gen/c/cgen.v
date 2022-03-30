@@ -3265,7 +3265,9 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 
 	n_ptr := node.expr_type.nr_muls() - 1
 
-	g.begin_untag(node.expr_type)
+	if node.expr_type.is_ptr() {
+		g.begin_untag(node.expr_type)
+	}
 
 	if n_ptr > 0 {
 		g.write('(')
@@ -3299,7 +3301,9 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 		}
 	}
 
-	g.end_untag(node.expr_type)
+	if node.expr_type.is_ptr() {
+		g.end_untag(node.expr_type)
+	}
 
 	if (node.expr_type.is_ptr() || sym.kind == .chan) && node.from_embed_types.len == 0 {
 		g.write('->')
@@ -3827,19 +3831,15 @@ fn (mut g Gen) cast_expr(node ast.CastExpr) {
 }
 
 fn (mut g Gen) begin_untag(typ ast.Type) {
-	if typ.is_ptr() {
-		styp := g.typ(typ)
-		g.write('UNTAG_PTR($styp')
-		// hack: remove *
-		g.out.go_back(typ.nr_muls())
-		g.write(', ')
-	}
+	styp := g.typ(typ)
+	g.write('UNTAG_PTR($styp')
+	// hack: remove *
+	g.out.go_back(typ.nr_muls())
+	g.write(', ')
 }
 
 fn (mut g Gen) end_untag(typ ast.Type) {
-	if typ.is_ptr() {
-		g.write(')')
-	}
+	g.write(')')
 }
 
 fn (mut g Gen) concat_expr(node ast.ConcatExpr) {
@@ -5380,7 +5380,7 @@ fn (mut g Gen) go_expr(node ast.GoExpr) {
 			}
 			if has_cast {
 				pos := g.out.len
-				g.call_args(expr)
+				g.call_args(expr, false)
 				mut call_args_str := g.out.after(pos)
 				g.out.go_back(call_args_str.len)
 				mut rep_group := []string{cap: 2 * expr.args.len}

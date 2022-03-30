@@ -789,9 +789,6 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		mname := c_name(node.name)
 		g.write('${dot}_typ]._method_${mname}(')
 
-		if node.left_type.is_ptr() {
-			g.write('UNTAG_PTR(void, ')
-		}
 		g.expr(node.left)
 		g.write('${dot}_object')
 		if node.left_type.is_ptr() {
@@ -799,7 +796,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		}
 		if node.args.len > 0 {
 			g.write(', ')
-			g.call_args(node)
+			g.call_args(node, false)
 		}
 		g.write(')')
 		return
@@ -1044,8 +1041,6 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		}
 	}
 
-	g.begin_untag(node.receiver_type)
-
 	if node.receiver_type.is_ptr()
 		&& (!node.left_type.is_ptr() || node.left_type.has_flag(.variadic)
 		|| node.from_embed_types.len != 0
@@ -1121,8 +1116,6 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		g.write(')')
 	}
 
-	g.end_untag(node.receiver_type)
-
 	is_variadic := node.expected_arg_types.len > 0
 		&& node.expected_arg_types[node.expected_arg_types.len - 1].has_flag(.variadic)
 	if node.args.len > 0 || is_variadic {
@@ -1140,7 +1133,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 }
 	*/
 	// ///////
-	g.call_args(node)
+	g.call_args(node, false)
 	if array_depth >= 0 {
 		g.write(', $array_depth')
 	}
@@ -1189,6 +1182,7 @@ fn (mut g Gen) fn_call(node ast.CallExpr) {
 		}
 	}
 	mut name := node.name
+	requires_untag :=  name in ["realloc", "free"]
 	is_print := name in ['print', 'println', 'eprint', 'eprintln', 'panic']
 	print_method := name
 	is_json_encode := name == 'json.encode'
@@ -1212,7 +1206,7 @@ fn (mut g Gen) fn_call(node ast.CallExpr) {
 			if node.args[0].typ.is_ptr() {
 				g.write('*')
 			}
-			g.call_args(node)
+			g.call_args(node, requires_untag)
 			g.writeln(');')
 			tmp2 = g.new_tmp_var()
 			if is_json_encode {
@@ -1231,7 +1225,7 @@ fn (mut g Gen) fn_call(node ast.CallExpr) {
 			// Skip the first argument in json.decode which is a type
 			// its name was already used to generate the function call
 			g.is_js_call = true
-			g.call_args(node)
+			g.call_args(node, requires_untag)
 			g.is_js_call = false
 			g.writeln(');')
 			tmp2 = g.new_tmp_var()
@@ -1349,7 +1343,7 @@ fn (mut g Gen) fn_call(node ast.CallExpr) {
 		if g.pref.is_debug && node.name == 'panic' {
 			paline, pafile, pamod, pafn := g.panic_debug_info(node.pos)
 			g.write('panic_debug($paline, tos3("$pafile"), tos3("$pamod"), tos3("$pafn"),  ')
-			g.call_args(node)
+			g.call_args(node, requires_untag)
 			g.write(')')
 		} else {
 			// Simple function call
@@ -1412,7 +1406,7 @@ fn (mut g Gen) fn_call(node ast.CallExpr) {
 						g.write('__tmp_arg_${tmp_cnt_save + i}')
 					}
 				} else {
-					g.call_args(node)
+					g.call_args(node, requires_untag)
 				}
 			}
 			g.write(')')
@@ -1555,7 +1549,7 @@ fn (mut g Gen) autofree_call_postgen(node_pos int) {
 	// g.doing_autofree_tmp = false
 }
 
-fn (mut g Gen) call_args(node ast.CallExpr) {
+fn (mut g Gen) call_args(node ast.CallExpr, requires_untag bool) {
 	args := if g.is_js_call {
 		if node.args.len < 1 {
 			g.error('node should have at least 1 arg', node.pos)
@@ -1603,12 +1597,15 @@ fn (mut g Gen) call_args(node ast.CallExpr) {
 			break
 		}
 
+
 		mut typ := arg.typ
 		if i < expected_types.len {
 			typ = expected_types[i]
 		}
 
-		g.begin_untag(typ)
+		if requires_untag {
+			g.begin_untag(typ)
+		}
 
 		use_tmp_var_autofree := g.is_autofree && arg.typ == ast.string_type && arg.is_tmp_autofree
 			&& !g.inside_const && !g.is_builtin_mod
@@ -1642,7 +1639,9 @@ fn (mut g Gen) call_args(node ast.CallExpr) {
 			}
 		}
 
-		g.end_untag(typ)
+		if requires_untag {
+			g.end_untag(typ)
+		}
 
 		if i < args.len - 1 || is_variadic {
 			g.write(', ')
