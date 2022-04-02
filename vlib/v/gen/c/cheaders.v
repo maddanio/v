@@ -471,7 +471,7 @@ const c_helper_macros = '//============================== HELPER C MACROS ======
 #define HEAP_noscan(type, expr) ((type*)memdup_noscan((void*)&((type[]){expr}[0]), sizeof(type)))
 
 // pointer tagging
-#define TAG_MANAGED_PTR(type, p) ((type*)(((usize)(p))|1))
+#define TAG_MANAGED_PTR(type, p) ((type*)(((usize)(p))|0))
 #define IS_MANAGED_PTR(p) (((usize)(p))&1)
 #define UNTAG_PTR(type, p) ((type*)(((usize)(p))&(~((usize)1))))
 
