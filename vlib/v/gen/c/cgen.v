@@ -2170,7 +2170,6 @@ fn (mut g Gen) expr_with_cast(expr ast.Expr, got_type_raw ast.Type, expected_typ
 	}
 	if expected_type.has_flag(.optional) && expr is ast.None {
 		g.gen_optional_error(expected_type, expr)
-		g.begin_untag(got_type)
 	} else {
 		if expr is ast.IntegerLiteral {
 			if expected_type in [ast.u64_type, ast.u32_type, ast.u16_type] && expr.val[0] != `-` {
@@ -3279,9 +3278,7 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 
 	n_ptr := node.expr_type.nr_muls() - 1
 
-	if node.expr_type.is_ptr() {
-		g.begin_untag(node.expr_type)
-	}
+	g.begin_untag_if(node.expr_type)
 
 	if n_ptr > 0 {
 		g.write('(')
