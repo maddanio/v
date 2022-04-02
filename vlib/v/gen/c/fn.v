@@ -790,8 +790,9 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		}
 		mname := c_name(node.name)
 		g.write('${dot}_typ]._method_${mname}(')
-
+		g.begin_untag_if(node.left_type)
 		g.expr(node.left)
+		g.end_untag_if(node.left_type)
 		g.write('${dot}_object')
 		if node.args.len > 0 {
 			g.write(', ')
@@ -1292,7 +1293,9 @@ fn (mut g Gen) fn_call(node ast.CallExpr) {
 				g.expr(expr)
 				dot := if typ.is_ptr() { '->' } else { '.' }
 				g.write('${dot}_typ]._method_str(')
+				g.begin_untag_if(typ)
 				g.expr(expr)
+				g.end_untag_if(typ)
 				g.write('${dot}_object')
 				g.writeln('));')
 				return
