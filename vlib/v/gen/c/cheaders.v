@@ -466,14 +466,14 @@ const c_helper_macros = '//============================== HELPER C MACROS ======
 // take the address of an rvalue
 #define ADDR(type, expr) (&((type[]){expr}[0]))
 
-// copy something to the heap
-#define HEAP(type, expr) ((type*)memdup((void*)&((type[]){expr}[0]), sizeof(type)))
-#define HEAP_noscan(type, expr) ((type*)memdup_noscan((void*)&((type[]){expr}[0]), sizeof(type)))
-
 // pointer tagging
 #define TAG_MANAGED_PTR(type, p) ((type*)(((usize)(p))|0))
 #define IS_MANAGED_PTR(p) (((usize)(p))&1)
 #define UNTAG_PTR(type, p) ((type*)(((usize)(p))&(~((usize)1))))
+
+// copy something to the heap
+#define HEAP(type, expr) TAG_MANAGED_PTR(type,((type*)memdup((void*)&((type[]){expr}[0]), sizeof(type))))
+#define HEAP_noscan(type, expr) TAG_MANAGED_PTR(((type*)memdup_noscan((void*)&((type[]){expr}[0]), sizeof(type))))
 
 #define _PUSH_MANY(arr, val, tmp, tmp_typ) {tmp_typ tmp = (val); array_push_many(arr, tmp.data, tmp.len);}
 #define _PUSH_MANY_noscan(arr, val, tmp, tmp_typ) {tmp_typ tmp = (val); array_push_many_noscan(arr, tmp.data, tmp.len);}
