@@ -5783,7 +5783,12 @@ static inline __shared__$interface_name ${shared_fn_name}(__shared__$cctype* x) 
 						if parameter_name.starts_with('__shared__') {
 							methods_wrapper.writeln('${method_call}(${fargs.join(', ')}->val);')
 						} else {
-							methods_wrapper.writeln('${method_call}(*${fargs.join(', ')});')
+							sarg0type := g.typ(method.params[0].typ)
+							methods_wrapper.write_string('${method_call}(*UNTAG_PTR($sarg0type, ${fargs[0]})')
+							if fargs.len > 1 {
+								methods_wrapper.write_string(', ${fargs[1..].join(', ')}')
+							}
+							methods_wrapper.writeln(');')
 						}
 					}
 					methods_wrapper.writeln('}')
