@@ -3278,7 +3278,7 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 
 	n_ptr := node.expr_type.nr_muls() - 1
 
-	g.begin_untag_if(node.expr_type)
+	mut num_untag := if g.begin_untag_if(node.expr_type) {1} else {0}
 
 	if n_ptr > 0 {
 		g.write('(')
@@ -3292,8 +3292,12 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 		g.write('.data)')
 	}
 
-
 	// struct embedding
+	if sym.info in [ast.Struct, ast.Aggregate] {
+		for i, embed in node.from_embed_types {
+			if g.begin_untag_if(node.from_embed_types[i]) {num_untag++}
+		}
+	}
 	if sym.info in [ast.Struct, ast.Aggregate] {
 		for i, embed in node.from_embed_types {
 			embed_sym := g.table.sym(embed)
@@ -3304,6 +3308,8 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 				node.from_embed_types[i - 1].is_ptr()
 			}
 			if is_left_ptr {
+				g.end_untag()
+				num_untag--
 				g.write('->')
 			} else {
 				g.write('.')
@@ -3312,7 +3318,8 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 		}
 	}
 
-	g.end_untag_if(node.expr_type)
+	assert num_untag <= 1
+	if num_untag == 1 {g.end_untag()}
 
 	if (node.expr_type.is_ptr() || sym.kind == .chan) && node.from_embed_types.len == 0 {
 		g.write('->')
