@@ -356,8 +356,10 @@ fn (mut g Gen) gen_assign_stmt(node_ ast.AssignStmt) {
 					} else {
 						if !is_decl && left.is_auto_deref_var() {
 							g.write('*')
+							g.untag_expr_if(left)
+						} else {
+							g.expr(left)
 						}
-						g.expr(left)
 					}
 				}
 			}
@@ -423,8 +425,10 @@ fn (mut g Gen) gen_assign_stmt(node_ ast.AssignStmt) {
 						}
 						if val.is_auto_deref_var() {
 							g.write('*')
+							g.untag_expr_if(val)
+						} else {
+							g.expr(val)
 						}
-						g.expr(val)
 						if is_auto_heap {
 							g.write('))')
 						}
@@ -486,16 +490,23 @@ fn (mut g Gen) gen_multi_return_assign(node &ast.AssignStmt, return_type ast.Typ
 			}
 		}
 		styp := if ident.name in g.defer_vars { '' } else { g.typ(node.left_types[i]) }
+		mut may_need_untag := false
 		if node.op == .decl_assign {
 			g.write('$styp ')
 			if is_auto_heap {
 				g.write('*')
+				may_need_untag = true
 			}
 		}
 		if lx.is_auto_deref_var() {
 			g.write('*')
+			may_need_untag = true
 		}
-		g.expr(lx)
+		if may_need_untag {
+			g.untag_expr_if(lx)
+		} else {
+			g.expr(lx)
+		}
 		noscan := if is_auto_heap { g.check_noscan(return_type) } else { '' }
 		if g.is_arraymap_set {
 			if is_opt {

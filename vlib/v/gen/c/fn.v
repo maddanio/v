@@ -1637,7 +1637,7 @@ fn (mut g Gen) call_args(node ast.CallExpr, requires_untag bool) {
 		}
 
 		if requires_untag {
-			g.end_untag(typ)
+			g.end_untag()
 		}
 
 		if i < args.len - 1 || is_variadic {

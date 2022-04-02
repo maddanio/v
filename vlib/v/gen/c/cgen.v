@@ -1958,6 +1958,7 @@ fn (mut g Gen) write_sumtype_casting_fn(fun SumtypeCastingFn) {
 	got_sym, exp_sym := g.table.sym(got), g.table.sym(exp)
 	got_cname, exp_cname := got_sym.cname, exp_sym.cname
 	mut sb := strings.new_builder(128)
+	sb.writeln('/*sumtype casting fn begin*/')
 	sb.writeln('static inline $exp_cname ${fun.fn_name}($got_cname* x) {')
 	sb.writeln('\t$got_cname* ptr = memdup(x, sizeof($got_cname));')
 	for embed_hierarchy in g.table.get_embeds(got_sym) {
@@ -1998,6 +1999,7 @@ fn (mut g Gen) write_sumtype_casting_fn(fun SumtypeCastingFn) {
 		}
 	}
 	sb.writeln('};\n}')
+	sb.writeln('/*sumtype casting fn end*/')
 	g.auto_fn_definitions << sb.str()
 }
 
@@ -2184,7 +2186,7 @@ fn (mut g Gen) expr_with_cast(expr ast.Expr, got_type_raw ast.Type, expected_typ
 		g.expr(expr)
 	}
 	if in_untag {
-		g.end_untag(got_type)
+		g.end_untag()
 	}
 }
 
@@ -2989,7 +2991,7 @@ fn (mut g Gen) expr(node_ ast.Expr) {
 			}
 			g.inside_map_postfix = true
 			if node.expr.is_auto_deref_var() {
-				g.write('(*')
+				g.write('/*auto deref expr*/(*')
 				g.expr(node.expr)
 				g.write(')')
 			} else {
@@ -3008,6 +3010,7 @@ fn (mut g Gen) expr(node_ ast.Expr) {
 				g.is_amp = true
 			}
 			if node.op == .arrow {
+				g.write('/*arrrow*/')
 				styp := g.typ(node.right_type)
 				right_sym := g.table.sym(node.right_type)
 				mut right_inf := right_sym.info as ast.Chan
@@ -3045,7 +3048,11 @@ fn (mut g Gen) expr(node_ ast.Expr) {
 					g.write(node.op.str())
 				}
 				// g.write('(')
-				g.expr(node.right)
+				if node.op == .mul {
+					g.untag_expr_if(node.right)
+				} else {
+					g.expr(node.right)
+				}
 			}
 			g.is_amp = false
 		}
@@ -3308,9 +3315,7 @@ fn (mut g Gen) selector_expr(node ast.SelectorExpr) {
 		}
 	}
 
-	if node.expr_type.is_ptr() {
-		g.end_untag(node.expr_type)
-	}
+	g.end_untag_if(node.expr_type)
 
 	if (node.expr_type.is_ptr() || sym.kind == .chan) && node.from_embed_types.len == 0 {
 		g.write('->')
@@ -3837,16 +3842,35 @@ fn (mut g Gen) cast_expr(node ast.CastExpr) {
 	}
 }
 
-fn (mut g Gen) begin_untag_if(typ ast.Type) {
+fn (mut g Gen) begin_untag_if(typ ast.Type) bool {
 	if typ.is_ptr() {
 		g.begin_untag(typ)
+		return true
+	} else {
+		return false
 	}
 }
 
 fn (mut g Gen) end_untag_if(typ ast.Type) {
 	if typ.is_ptr() {
-		g.end_untag(typ)
+		g.end_untag()
 	}
+}
+
+fn (mut g Gen) begin_untag_expr_if(expr ast.Expr) bool {
+	if expr is ast.Ident {
+		obj := expr.obj
+		if obj is ast.Var{
+			return g.begin_untag_if(obj.typ)
+		}
+	}
+	return false
+}
+
+fn (mut g Gen) untag_expr_if(expr ast.Expr) {
+	needs_untag := g.begin_untag_expr_if(expr)
+	g.expr(expr)
+	if needs_untag {g.end_untag()}
 }
 
 fn (mut g Gen) begin_untag(typ ast.Type) {
@@ -3857,7 +3881,7 @@ fn (mut g Gen) begin_untag(typ ast.Type) {
 	g.write(', ')
 }
 
-fn (mut g Gen) end_untag(typ ast.Type) {
+fn (mut g Gen) end_untag() {
 	g.write(')')
 }
 
