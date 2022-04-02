@@ -467,7 +467,7 @@ const c_helper_macros = '//============================== HELPER C MACROS ======
 #define ADDR(type, expr) (&((type[]){expr}[0]))
 
 // pointer tagging
-#define TAG_MANAGED_PTR(type, p) ((type*)(((usize)(p))|0))
+#define TAG_MANAGED_PTR(type, p) ((type*)(((usize)(p))|1))
 #define IS_MANAGED_PTR(p) (((usize)(p))&1)
 #define UNTAG_PTR(type, p) ((type*)(((usize)(p))&(~((usize)1))))
 
