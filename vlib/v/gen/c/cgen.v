@@ -5626,10 +5626,10 @@ fn (mut g Gen) interface_table() string {
 					cname := c_name(field.name)
 					field_styp := g.typ(field.typ)
 					if _ := st_sym.find_field(field.name) {
-						cast_struct.writeln('\t\t.$cname = ($field_styp*)((char*)x + __offsetof_ptr(x, $cctype, $cname)),')
+						cast_struct.writeln('\t\t.$cname = ($field_styp*)((char*)UNTAG_PTR($cctype, x) + __offsetof_ptr(x, $cctype, $cname)),')
 					} else {
 						// the field is embedded in another struct
-						cast_struct.write_string('\t\t.$cname = ($field_styp*)((char*)x')
+						cast_struct.write_string('\t\t.$cname = ($field_styp*)((char*)UNTAG_PTR($cctype, x)')
 						if st == ast.voidptr_type {
 							cast_struct.write_string('/*.... ast.voidptr_type */')
 						} else {
