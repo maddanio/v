@@ -3732,6 +3732,7 @@ fn (mut g Gen) ident(node ast.Ident) {
 			is_auto_heap = v.is_auto_heap && (!g.is_assign_lhs || g.assign_op != .decl_assign)
 			if is_auto_heap {
 				g.write('(*(')
+				g.begin_untag(v.typ)
 			}
 			if v.smartcasts.len > 0 {
 				v_sym := g.table.sym(v.typ)
@@ -3761,6 +3762,7 @@ fn (mut g Gen) ident(node ast.Ident) {
 						g.write(')')
 					}
 					if is_auto_heap {
+						g.end_untag()
 						g.write('))')
 					}
 					return
@@ -3790,6 +3792,7 @@ fn (mut g Gen) ident(node ast.Ident) {
 	}
 	g.write(g.get_ternary_name(name))
 	if is_auto_heap {
+		g.end_untag()
 		g.write('))')
 	}
 }
