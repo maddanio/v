@@ -88,7 +88,7 @@ fn (mut g Gen) gen_expr_to_string(expr ast.Expr, etype ast.Type) {
 		if etype.is_ptr() {
 			g.write('*')
 		}
-		g.expr(expr)
+		g.untag_expr_if(expr)
 	} else if typ == ast.bool_type {
 		g.expr(expr)
 		g.write(' ? _SLIT("true") : _SLIT("false")')
@@ -127,7 +127,9 @@ fn (mut g Gen) gen_expr_to_string(expr ast.Expr, etype ast.Type) {
 				}
 			}
 		}
+		g.begin_untag_if(typ)
 		g.expr_with_cast(expr, typ, typ)
+		g.end_untag_if(typ)
 		if is_shared {
 			g.write('->val')
 		}
@@ -143,7 +145,9 @@ fn (mut g Gen) gen_expr_to_string(expr ast.Expr, etype ast.Type) {
 			g.write('*')
 		}
 		if sym.kind != .function {
+			g.begin_untag_if(typ)
 			g.expr_with_cast(expr, typ, typ)
+			g.end_untag_if(typ)
 		}
 		g.write(')')
 	}
