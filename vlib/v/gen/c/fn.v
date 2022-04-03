@@ -1041,6 +1041,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		}
 	}
 
+	mut derefed := false
 	if node.receiver_type.is_ptr()
 		&& (!node.left_type.is_ptr() || node.left_type.has_flag(.variadic)
 		|| node.from_embed_types.len != 0
@@ -1060,6 +1061,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		&& node.from_embed_types.len == 0 {
 		if !node.left_type.has_flag(.shared_f) {
 			g.write('/*rec*/*')
+			derefed = true
 		}
 	} else if !is_range_slice && node.from_embed_types.len == 0 && node.name != 'str' {
 		diff := node.left_type.nr_muls() - node.receiver_type.nr_muls()
@@ -1071,6 +1073,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 			g.write([]byte{len: diff, init: `*`}.bytestr())
 		}
 	}
+
 
 	// if node.left_type.idx() != node.receiver_type.idx() {
 	// 	println('${g.typ(node.left_type)} ${g.typ(node.receiver_type)}')
@@ -1085,13 +1088,22 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		if left_sym.kind == .array && node.left.is_auto_deref_var()
 			&& node.name in ['first', 'last', 'repeat'] {
 			g.write('*')
+			derefed = true
+		}
+		if derefed {g.begin_untag(node.left_type)}
+		for i, embed in node.from_embed_types {
+			is_left_ptr := if i == 0 {
+				g.begin_untag_if(node.left_type)
+			} else {
+				g.begin_untag_if(node.from_embed_types[i - 1])
+			}
 		}
 		if node.left is ast.MapInit {
 			g.write('(map[]){')
-			g.expr(node.left)
+			g.untag_expr_if(node.left)
 			g.write('}[0]')
 		} else {
-			g.expr(node.left)
+			g.untag_expr_if(node.left)
 		}
 		for i, embed in node.from_embed_types {
 			embed_sym := g.table.sym(embed)
@@ -1102,6 +1114,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 				node.from_embed_types[i - 1].is_ptr()
 			}
 			if is_left_ptr {
+				g.end_untag()
 				g.write('->')
 			} else {
 				g.write('.')
@@ -1111,6 +1124,7 @@ fn (mut g Gen) method_call(node ast.CallExpr) {
 		if node.left_type.has_flag(.shared_f) {
 			g.write('->val')
 		}
+		if derefed {g.end_untag()}
 	}
 	if has_cast {
 		g.write(')')
